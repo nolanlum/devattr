@@ -156,26 +156,26 @@ main(int argc, char* argv[]) {
     int ret;
     
     ctx = udev_new();
-    if(ctx == NULL)
+    if (ctx == NULL)
         err(1, "udev_new");
 
     enumerate = udev_enumerate_new(ctx);
-    if(enumerate == NULL)
+    if (enumerate == NULL)
         err(1, "udev_enumerate_new");
     
-    if(!parse_args(argc, argv, enumerate))
+    if (!parse_args(argc, argv, enumerate))
         return (1);
 
     ret = udev_enumerate_scan_devices(enumerate);
-    if(ret != 0)
+    if (ret != 0)
         err(1, "udev_enumerate_scan_devices ret = %d", ret);
     
     udev_list_entry_foreach (current, udev_enumerate_get_list_entry(enumerate)) {
         struct udev_device *dev = udev_list_entry_get_device(current);
-        if(dev == NULL)
+        if (dev == NULL)
             continue;
         prop_dictionary_t dict = udev_device_get_dictionary(dev);
-        if(dict == NULL)
+        if (dict == NULL)
             continue;
         prop_object_iterator_t iter = prop_dictionary_iterator(dict);
         prop_dictionary_keysym_t curKey = NULL;
@@ -185,7 +185,7 @@ main(int argc, char* argv[]) {
         if (!SLIST_EMPTY(&props)) {
             SLIST_FOREACH(ent, &props, entries) {
                 prop_object_t keyVal = prop_dictionary_get(dict, ent->val);
-                if(keyVal != NULL)
+                if (keyVal != NULL)
                     print_prop(ent->val, keyVal);
             }
         } else {

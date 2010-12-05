@@ -37,6 +37,8 @@
 
 #include <ctype.h>
 #include <devattr.h>
+#include <err.h>
+#include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -119,7 +121,7 @@ parse_args(int argc, char* argv[], struct udev_enumerate *enumerate) {
     return (1);
 }
 
-void
+static void
 print_prop(const char* key, prop_object_t value) {
     char *valStr;
 
@@ -132,14 +134,16 @@ print_prop(const char* key, prop_object_t value) {
         break;
     case PROP_TYPE_NUMBER:
         if (prop_number_unsigned((prop_number_t) value))
-            printf("%1$llu (0x%1$llx)\n", prop_number_unsigned_integer_value((prop_number_t) value));
+            printf("%1$"PRIu64" (0x%1$"PRIx64")\n", prop_number_unsigned_integer_value((prop_number_t) value));
         else
-            printf("%lld\n", prop_number_integer_value((prop_number_t) value));
+            printf("%"PRId64"\n", prop_number_integer_value((prop_number_t) value));
         break;
     case PROP_TYPE_STRING:
         valStr = prop_string_cstring(value);
         printf("%s\n", valStr);
         free(valStr);
+        break;
+    default:
         break;
     }
 }

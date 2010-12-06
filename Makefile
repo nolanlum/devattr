@@ -4,6 +4,8 @@ WARNS?= 3
 
 LDADD=  -ldevattr -lprop
 
+MAN8=
+
 CFLAGS += -Wall
 #debug
 #CFLAGS += -ggdb

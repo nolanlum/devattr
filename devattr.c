@@ -67,13 +67,14 @@ usage(const char* name) {
 					"  h : Print this help message.\n\n"
 
 					"  p property  : Only display property, can be specified multiple times and\n"
-					"				 combined with all other options.\n"
+					"                combined with all other options.\n"
 					"  d device	   : Only display devices with name `device'. When used with\n"
-					"				 -p, only properties `-p' of device `-d' are listed. Can be\n"
-					"				 specified multiple times. Allows wildcards.\n"
+					"                -p, only properties `-p' of device `-d' are listed. Can be\n"
+					"                specified multiple times. Allows wildcards.\n"
 					"  m key:value : Only display devices whose property `key' matches with wildcards\n"
-					"				 value `value'. Stacks with -p, -d, and -m. Can be specified\n"
-					"				 multiple times.\n"
+					"                value `value' unless the key-value pair starts with !, in which\n"
+					"                case the match is inverted. Stacks with -p, -d, and -m.\n"
+					"                Can be specified multiple times.\n"
 					"  r key:value : Behaves similarly to `-m', but matches with regex.\n"
 			, name);
 }

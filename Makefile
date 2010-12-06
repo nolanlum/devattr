@@ -2,9 +2,7 @@ PROG=   devattr
 SRCS=   devattr.c
 WARNS?= 3
 
-LDADD=    -ldevattr
-
-NOMAN=
+LDADD=  -ldevattr -lprop
 
 CFLAGS += -Wall
 #debug

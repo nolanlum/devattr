@@ -45,12 +45,6 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-/*
-- The usage() output is not quite like our standard; take a look at devfsctl --help for example
-
-- It is missing a manpage
-*/
-
 static SLIST_HEAD(, sl_entry) props = SLIST_HEAD_INITIALIZER(props);
 struct sl_entry {
 	char *val;
@@ -59,23 +53,28 @@ struct sl_entry {
 
 static void
 usage(const char* name) {
-	fprintf(stderr, "devattr\n\n"
+	fprintf(stderr, "Usage: %s [-Ah] [-p property] [-d device] [-m key:value] [-r key:value]\n"
+                    "Valid options are:\n"
+					" -A\n"
+					"	Don't display aliases.\n"
+					" -h\n"
+					"	Print this help message.\n\n"
 
-					"Usage: %s [-Ah] [-p property] [-d device] [-m key:value] [-r key:value]\n\n"
-
-					"  A : Don't display aliases.\n"
-					"  h : Print this help message.\n\n"
-
-					"  p property  : Only display property, can be specified multiple times and\n"
-					"                combined with all other options.\n"
-					"  d device	   : Only display devices with name `device'. When used with\n"
-					"                -p, only properties `-p' of device `-d' are listed. Can be\n"
-					"                specified multiple times. Allows wildcards.\n"
-					"  m key:value : Only display devices whose property `key' matches with wildcards\n"
-					"                value `value' unless the key-value pair starts with !, in which\n"
-					"                case the match is inverted. Stacks with -p, -d, and -m.\n"
-					"                Can be specified multiple times.\n"
-					"  r key:value : Behaves similarly to `-m', but matches with regex.\n"
+					"Valid options with their arguments are:\n"
+					" -p <property>\n"
+					"	Only display property; can be specified multiple times and\n"
+					"	combined with all other options.\n"
+					" -d <device>\n"
+					"	Only display devices with name `device'. When used with\n"
+					"	-p, only properties `-p' of device `-d' are listed. Can be\n"
+					"	specified multiple times. Allows wildcards.\n"
+					" -m <key:value>\n"
+                    "	Only display devices whose property `key' matches with wildcards\n"
+					"	value `value' unless the key-value pair starts with ~, in which\n"
+					"	case the match is inverted. Stacks with -p, -d, and -m.\n"
+					"	Can be specified multiple times.\n"
+					" -r <key:value>\n"
+					"	Behaves similarly to `-m', but matches with regex.\n"
 			, name);
 }
 
@@ -108,10 +107,8 @@ parse_args(int argc, char* argv[], struct udev_enumerate *enumerate) {
 		case 'm':
 		case 'r':
 			/* Check for exclusion. */
-			if(*optarg == '!') {
-				invert = true;
-				optarg += 1;
-			}
+			invert = *optarg == '~';
+
 			/* Split into key/value. */
 			colon = strchr(optarg, ':');
 			if (colon == NULL) {
@@ -122,9 +119,9 @@ parse_args(int argc, char* argv[], struct udev_enumerate *enumerate) {
 			*colon = '\0';
 			if (invert) {
 				if (ch == 'r')
-					udev_enumerate_add_nomatch_regex(enumerate, optarg, colon + 1);
+					udev_enumerate_add_nomatch_regex(enumerate, optarg + 1, colon + 1);
 				else
-					udev_enumerate_add_nomatch_expr(enumerate, optarg, colon + 1);
+					udev_enumerate_add_nomatch_expr(enumerate, optarg + 1, colon + 1);
 			} else {
 				if (ch == 'r')
 					udev_enumerate_add_match_regex(enumerate, optarg, colon + 1);
@@ -192,35 +189,40 @@ main(int argc, char* argv[]) {
 	if (ret != 0)
 		err(EX_UNAVAILABLE, "udev_enumerate_scan_devices ret = %d", ret);
 
-	udev_list_entry_foreach (current, udev_enumerate_get_list_entry(enumerate)) {
-		struct udev_device *dev = udev_list_entry_get_device(current);
-		if (dev == NULL)
-			continue;
-		prop_dictionary_t dict = udev_device_get_dictionary(dev);
-		if (dict == NULL)
-			continue;
-		prop_object_iterator_t iter = prop_dictionary_iterator(dict);
-		prop_dictionary_keysym_t cur_key = NULL;
+	current = udev_enumerate_get_list_entry(enumerate);
+	if (current == NULL) {
+		printf("No devices found.\n");
+	} else {
+		udev_list_entry_foreach (current, current) {
+			struct udev_device *dev = udev_list_entry_get_device(current);
+			if (dev == NULL)
+				continue;
+			prop_dictionary_t dict = udev_device_get_dictionary(dev);
+			if (dict == NULL)
+				continue;
+			prop_object_iterator_t iter = prop_dictionary_iterator(dict);
+			prop_dictionary_keysym_t cur_key = NULL;
 
-		char *dev_name = prop_string_cstring(prop_dictionary_get(dict, "name"));
-		printf("Device %s:\n", dev_name);
-		free(dev_name);
+			char *dev_name = prop_string_cstring(prop_dictionary_get(dict, "name"));
+			printf("Device %s:\n", dev_name);
+			free(dev_name);
 
-		if (!SLIST_EMPTY(&props)) {
-			SLIST_FOREACH(ent, &props, entries) {
-				prop_object_t key_val = prop_dictionary_get(dict, ent->val);
-				if (key_val != NULL)
-					print_prop(ent->val, key_val);
+			if (!SLIST_EMPTY(&props)) {
+				SLIST_FOREACH(ent, &props, entries) {
+					prop_object_t key_val = prop_dictionary_get(dict, ent->val);
+					if (key_val != NULL)
+						print_prop(ent->val, key_val);
+				}
+			} else {
+				while ((cur_key = (prop_dictionary_keysym_t) prop_object_iterator_next(iter)) != NULL) {
+					const char *key_str = prop_dictionary_keysym_cstring_nocopy(cur_key);
+					prop_object_t key_val = prop_dictionary_get_keysym(dict, cur_key);
+					print_prop(key_str, key_val);
+				}
 			}
-		} else {
-			while ((cur_key = (prop_dictionary_keysym_t) prop_object_iterator_next(iter)) != NULL) {
-				const char *key_str = prop_dictionary_keysym_cstring_nocopy(cur_key);
-				prop_object_t key_val = prop_dictionary_get_keysym(dict, cur_key);
-				print_prop(key_str, key_val);
-			}
+
+			printf("\n");
 		}
-
-		printf("\n");
 	}
 
 	udev_enumerate_unref(enumerate);
